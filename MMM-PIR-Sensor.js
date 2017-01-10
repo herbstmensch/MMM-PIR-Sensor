@@ -14,6 +14,8 @@ Module.register('MMM-PIR-Sensor',{
 		relayPIN: false,
 		powerSaving: true,
 		relayOnState: 1,
+		checkMillies: 200,
+		delayMillies: 2000
 	},
 
 	// Override socket notification handler.

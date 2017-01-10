@@ -14,6 +14,7 @@ const exec = require('child_process').exec;
 module.exports = NodeHelper.create({
   start: function () {
     this.started = false;
+    this.turnedOn= false;
   },
 
   activateMonitor: function () {
@@ -34,6 +35,34 @@ module.exports = NodeHelper.create({
     }
   },
 
+  delayGone: function () {
+
+	return Date.now()-this.lastOnMillies >= this.config.delayMillies;
+
+  },
+
+  checkMovement: function () {
+	const self = this;
+      //Detected movement
+	var value = this.pir.readSync();
+        if (value == 1) {
+          this.sendSocketNotification("USER_PRESENCE", true);
+          if (this.config.powerSaving && !this.turnedOn){
+            this.activateMonitor();
+            this.turnedOn = true;
+          }
+	  this.lastOnMillies = Date.now();
+         }
+        else if (value == 0 && this.delayGone()) {
+          this.sendSocketNotification("USER_PRESENCE", false);
+          if (this.config.powerSaving){
+            this.deactivateMonitor();
+	    this.turnedOn= false;
+          }
+        }
+	setTimeout(function (){self.checkMovement()},this.config.checkMillies);
+  },
+
   // Subclass socketNotificationReceived received.
   socketNotificationReceived: function(notification, payload) {
     if (notification === 'CONFIG' && this.started == false) {
@@ -51,21 +80,7 @@ module.exports = NodeHelper.create({
         exec("/opt/vc/bin/tvservice --preferred && sudo chvt 6 && sudo chvt 7", null);
       }
 
-      //Detected movement
-      this.pir.watch(function(err, value) {
-        if (value == 1) {
-          self.sendSocketNotification("USER_PRESENCE", true);
-          if (self.config.powerSaving){
-            self.activateMonitor();
-          }
-         }
-        else if (value == 0) {
-          self.sendSocketNotification("USER_PRESENCE", false);
-          if (self.config.powerSaving){
-            self.deactivateMonitor();
-          }
-        }
-      });
+      this.checkMovement();
 
       this.started = true;
 
